@@ -24,10 +24,14 @@ var (
 )
 
 var (
-	urls    chan string
-	writer  *os.File
-	bufSize = 1000
-	visited map[string]bool
+	urls        chan string
+	errChan     chan string
+	foundChan   chan string
+	writer      *os.File
+	errWriter   *os.File
+	bufSize     = 1000
+	visited     map[string]bool
+	errFileName = "spider.errors.txt"
 )
 
 // for decodings
@@ -64,7 +68,7 @@ func openUrl(url string) (data string, err error) {
 	// only handle html files
 	ctype := resp.Header.Get("Content-Type")
 	if -1 == strings.Index(ctype, "text/html") {
-		err = errors.New("Nota a html file")
+		err = errors.New("Not a html file")
 		return
 	}
 	// try enconding: gbk\big5\utf8
@@ -111,15 +115,17 @@ func openUrl(url string) (data string, err error) {
 func spider(word string) {
 	for {
 		url := <-urls
-		log.Println(url)
+		log.Println("Scanning", url)
 		html, err := openUrl(url)
 		if err != nil {
-			writer.WriteString("Err open Url:" + url + err.Error())
+			errChan <- fmt.Sprintf("%s [Open]\t[%s]\t%s\r\n",
+				time.Now().Format("2006/01/02 03:04:05"), url, err.Error())
 			continue
 		}
 		nodes, err := goquery.ParseString(html)
 		if err != nil {
-			writer.WriteString("Err parse Url:" + url + err.Error())
+			errChan <- fmt.Sprintf("%s [Parsing]:\t[%s]\t%s\r\n",
+				time.Now().Format("2006/01/02 03:04:05"), url, err.Error())
 			continue
 		}
 		// put found url into channel
@@ -142,8 +148,9 @@ func spider(word string) {
 		})
 		// match word
 		if -1 != strings.Index(html, word) {
-			log.Println("Found keyword in:", url)
-			writer.WriteString(url + "\n")
+			log.Println("*Found*\t", url)
+			foundChan <- fmt.Sprintf("%s\t%s\r\n",
+				time.Now().Format("2006/01/02 03:04:05"), url)
 		}
 	}
 }
@@ -159,13 +166,31 @@ func main() {
 		log.Panicln(err.Error())
 	}
 	defer writer.Close()
+	errWriter, err = os.OpenFile(errFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	if err != nil {
+		log.Panicln(err.Error())
+	}
+	defer errWriter.Close()
 	urls = make(chan string, bufSize)
+	errChan = make(chan string, bufSize)
+	foundChan = make(chan string, bufSize)
 	visited = make(map[string]bool)
 	// add the very first url to scrawl with
 	addNewUrl(*url)
 	for i := 0; i < *nThreads; i++ {
 		go spider(*word)
 	}
+	// write to file
+	go func() {
+		for {
+			errWriter.WriteString(<-errChan)
+		}
+	}()
+	go func() {
+		for {
+			writer.WriteString(<-foundChan)
+		}
+	}()
 	// monitor
 	for {
 		log.Println(len(urls), "to search ...")

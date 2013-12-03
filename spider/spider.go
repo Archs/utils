@@ -113,9 +113,13 @@ func spider(word string) {
 		url := <-urls
 		log.Println(url)
 		html, err := openUrl(url)
+		if err != nil {
+			writer.WriteString("Err open Url:" + url + err.Error())
+			continue
+		}
 		nodes, err := goquery.ParseString(html)
 		if err != nil {
-			log.Println("Err:", err.Error())
+			writer.WriteString("Err parse Url:" + url + err.Error())
 			continue
 		}
 		// put found url into channel

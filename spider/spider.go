@@ -21,6 +21,7 @@ var (
 	word     = flag.String("k", "keyword", "keyword to search")
 	ofname   = flag.String("o", "", "output file for collected links")
 	nThreads = flag.Int("n", 1, "number of cocurrent scrawlers")
+	dbg      = flag.Bool("debug", false, "enable debug or not")
 )
 
 var (
@@ -32,6 +33,9 @@ var (
 	bufSize     = 1000
 	visited     map[string]bool
 	errFileName = "spider.errors.txt"
+
+	// debug handle
+	debug Debug
 )
 
 // for decodings
@@ -39,6 +43,15 @@ var (
 	gbk  = mahonia.NewDecoder("gb18030")
 	big5 = mahonia.NewDecoder("big5")
 )
+
+// handle debug
+type Debug bool
+
+func (d Debug) Println(s ...string) {
+	if d {
+		log.Println(s)
+	}
+}
 
 // store only md5 of the url to reduce memory usage
 func addNewUrl(url string) {
@@ -57,6 +70,7 @@ func openUrl(url string) (data string, err error) {
 	var resp *http.Response
 	var raw []byte
 	var dec mahonia.Decoder = nil
+	debug.Println("Get:", url)
 	resp, err = http.Get(url)
 	if err != nil {
 		return
@@ -92,6 +106,7 @@ func openUrl(url string) (data string, err error) {
 	} else {
 		dec = nil
 	}
+	debug.Println("Using charset:", charset)
 	// TODO gzip handle
 	contentEncoding := resp.Header.Get("Content-Encoding")
 	if contentEncoding == "gzip" {
@@ -109,13 +124,13 @@ func openUrl(url string) (data string, err error) {
 	}
 	defer resp.Body.Close()
 	data = string(raw)
+	debug.Println("Data:", data)
 	return
 }
 
 func spider(word string) {
 	for {
 		url := <-urls
-		log.Println("Scanning", url)
 		html, err := openUrl(url)
 		if err != nil {
 			errChan <- fmt.Sprintf("%s [Open]\t[%s]\t%s\r\n",
@@ -156,19 +171,23 @@ func spider(word string) {
 }
 
 func main() {
+	// parse cmd line
 	flag.Parse()
+	debug = Debug(*dbg)
 	if *ofname == "" {
 		*ofname = "output_" + time.Now().Format("20060102_030405") + ".txt"
 	}
 	var err error
 	writer, err = os.OpenFile(*ofname, os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		log.Panicln(err.Error())
+		log.Println(err.Error())
+		os.Exit(-1)
 	}
 	defer writer.Close()
 	errWriter, err = os.OpenFile(errFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
-		log.Panicln(err.Error())
+		log.Println(err.Error())
+		os.Exit(-1)
 	}
 	defer errWriter.Close()
 	urls = make(chan string, bufSize)

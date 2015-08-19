@@ -309,21 +309,28 @@ d-i partman/confirm_nooverwrite boolean true
 # You can choose to install non-free and contrib software.
 #d-i apt-setup/non-free boolean true
 #d-i apt-setup/contrib boolean true
+# apt mirror
 # Uncomment this if you don't want to use a network mirror.
 d-i apt-setup/no_mirror boolean true
-d-i apt-setup/use_mirror boolean false
+#d-i apt-setup/use_mirror boolean false
+#apt-mirror-setup apt-setup/no_mirror boolean true
+#d-i mirror/country string manual
+#d-i mirror/http/hostname string 192.168.20.130
+#d-i mirror/http/directory string /debian
+
 # Select which update services to use; define the mirrors to be used.
 # Values shown below are the normal defaults.
 #d-i apt-setup/services-select multiselect security, updates
 #d-i apt-setup/security_host string security.debian.org
 
-apt-mirror-setup apt-setup/no_mirror boolean false
-apt-mirror-setup apt-setup/use_mirror boolean true
 
 # Additional repositories, local[0-9] available
 #d-i apt-setup/local0/repository string \
 #       http://local.server/debian stable main
 #d-i apt-setup/local0/comment string local server
+d-i apt-setup/local0/repository string \
+       http://192.168.1.80/debian jessie main
+d-i apt-setup/local0/comment string Local Debian Mirror
 # Enable deb-src lines
 #d-i apt-setup/local0/source boolean true
 # URL to the public key of the local repository; you must provide a key or
@@ -342,7 +349,7 @@ tasksel tasksel/first multiselect standard
 
 # Individual additional packages to install
 #d-i pkgsel/include string openssh-server build-essential
-d-i pkgsel/include string openssh-server mesos
+d-i pkgsel/include string openssh-server mesos sudo
 # Whether to upgrade packages after debootstrap.
 # Allowed values: none, safe-upgrade, full-upgrade
 #d-i pkgsel/upgrade select none
@@ -448,4 +455,7 @@ d-i finish-install/reboot_in_progress note
 # directly, or use the apt-install and in-target commands to easily install
 # packages and run commands in the target system.
 #d-i preseed/late_command string apt-install zsh; in-target chsh -s /bin/zsh
-d-i preseed/late_command string in-target systemctl disable mesos-master zookeeper
+d-i preseed/late_command string in-target systemctl disable mesos-master zookeeper; echo "me      ALL=(ALL:ALL) ALL" >> /etc/sudoers
+
+# do post installation from remote server
+d-i preseed/late_command string chroot /target sh -c "/usr/bin/curl http://192.88.50.46/pxe/postinstall | /bin/sh -x "

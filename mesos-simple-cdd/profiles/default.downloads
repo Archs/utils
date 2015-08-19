@@ -60,3 +60,17 @@ scala-doc
 scala-library
 vim
 git
+xorg
+lightdm
+xfce4
+xfce4-notifyd
+iceweasel
+desktop-base
+thunar-volman
+tango-icon-theme
+xfce4-goodies
+gtk3-engines-xfce
+network-manager
+xfce4-mount-plugin
+xfce4-datetime-plugin
+xfce4-clipman-plugin

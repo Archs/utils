@@ -1,0 +1,1 @@
+simple-cdd --dvd --locale en_US --extra-udeb-dist squeeze --debian-mirror http://mirrors.163.com/debian --security-mirror http://mirrors.163.com/debian-security --local-packages /home/me/localPkgs/ -p my -a my --conf ./test.conf
